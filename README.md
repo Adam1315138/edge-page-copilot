@@ -54,9 +54,19 @@ Edge 商店里能打的确实有 —— [Page Assist](https://microsoftedge.micr
 
 ## 安装（Edge 侧载，约 1 分钟）
 
+**拿到代码**
+
+```bash
+git clone https://github.com/Adam1315138/edge-page-copilot.git
+```
+
+或者解压 `dist/edge-page-copilot-x.y.z.zip`（本地构建产物，仓库里不带 zip）。
+
+**加载到 Edge**
+
 1. 打开 `edge://extensions/`
 2. 左下角打开 **开发人员模式**
-3. 点 **加载解压缩的扩展**，选择 `edge-page-copilot` 目录（或解压 `dist/edge-page-copilot-1.0.0.zip` 后选解压目录）
+3. 点 **加载解压缩的扩展**，选择含 `manifest.json` 的那一层目录
 4. 工具栏点扩展图标 → 侧边栏打开（或按 `Alt+Shift+P`）
 
 > 没上商店是因为上架要开发者账号 + 审核，侧载功能完全一致。
