@@ -1,0 +1,17 @@
+# 构建产物（zip 用 GitHub Releases 分发，不进仓库）
+dist/*.zip
+dist/edge-page-copilot-*/
+
+# 依赖
+node_modules/
+
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# 本地临时产物
+*.local.*
+*.tmp
