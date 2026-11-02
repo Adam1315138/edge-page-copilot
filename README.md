@@ -60,7 +60,8 @@ Edge 商店里能打的确实有 —— [Page Assist](https://microsoftedge.micr
 git clone https://github.com/Adam1315138/edge-page-copilot.git
 ```
 
-或者解压 `dist/edge-page-copilot-x.y.z.zip`（本地构建产物，仓库里不带 zip）。
+- 或者到 [Releases](../../releases) 页下载 **Source code (zip)**，解压即用 —— pdf.js 已随仓库提供，**不需要任何构建步骤**
+- 自己打包：`python tools/package.py` 生成 `dist/edge-page-copilot-x.y.z.zip`（只含运行时文件）
 
 **加载到 Edge**
 
