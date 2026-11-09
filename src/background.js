@@ -240,6 +240,11 @@ async function runTool(name, args, settings, emit) {
     if (results.length === 0) {
       return '搜索失败：' + (errors.join('；') || '未知原因') + '。请直接基于已有信息回答，并告知用户检索未成功。';
     }
+    // 把来源发给侧边栏，用于把回答里的 [1][2] 渲染成可点链接
+    emit({
+      type: 'chat:sources',
+      items: results.map((r) => ({ title: r.title || '', url: r.url || '' })).filter((r) => r.url)
+    });
     return formatSearchResults(results);
   }
 
@@ -437,6 +442,10 @@ async function runTurn({ payload, settings, emit, signal }) {
         errors
       });
       if (results.length > 0) {
+        emit({
+          type: 'chat:sources',
+          items: results.map((r) => ({ title: r.title || '', url: r.url || '' })).filter((r) => r.url)
+        });
         preSearchBlock = '<search_results>\n以下是针对用户问题的联网检索结果，可作为补充依据，引用时请标注编号：\n\n'
           + formatSearchResults(results)
           + '\n</search_results>';

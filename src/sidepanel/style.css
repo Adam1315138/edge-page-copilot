@@ -350,6 +350,43 @@ body { overflow: hidden; }
 .body a { color: var(--accent); text-decoration: none; }
 .body a:hover { text-decoration: underline; }
 
+/* 引用角标（可点） */
+.body a.cite {
+  display: inline-block;
+  padding: 0 2px; margin: 0 1px;
+  font-size: 10px; line-height: 1.4;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 3px;
+  text-decoration: none;
+  vertical-align: super;
+  font-variant-numeric: tabular-nums;
+}
+.body a.cite:hover { filter: brightness(0.94); text-decoration: none; }
+
+/* 来源列表 */
+.sources {
+  margin-top: 10px; padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.sources-title {
+  font-size: 11px; color: var(--muted); margin-bottom: 5px;
+}
+.source-item {
+  display: flex; gap: 5px;
+  font-size: 11px; line-height: 1.5;
+  margin-bottom: 3px;
+}
+.source-num {
+  flex: 0 0 auto; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.source-item a {
+  color: var(--accent); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.source-item a:hover { text-decoration: underline; }
+
 .body table {
   width: 100%;
   border-collapse: collapse;

@@ -145,6 +145,18 @@ function handleBackgroundMessage(msg) {
       break;
     }
 
+    case 'chat:sources': {
+      if (!state.streaming) break;
+      const seen = new Set(state.streaming.sources.map((s) => s.url));
+      for (const it of (msg.items || [])) {
+        if (it && it.url && !seen.has(it.url)) {
+          state.streaming.sources.push(it);
+          seen.add(it.url);
+        }
+      }
+      break;
+    }
+
     case 'chat:done':
       finishStreaming({ usage: msg.usage, elapsedMs: msg.elapsedMs });
       break;
@@ -622,6 +634,96 @@ function scheduleRender() {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* 引用角标与来源列表                                                   */
+/* ------------------------------------------------------------------ */
+
+/** 在新标签页打开外链。侧边栏是扩展页面，window.open 常被拦，用 chrome.tabs 更可靠 */
+function openExternal(url) {
+  if (!url) return;
+  try {
+    if (chrome && chrome.tabs && chrome.tabs.create) {
+      chrome.tabs.create({ url });
+      return;
+    }
+  } catch (e) { /* 落到兜底 */ }
+  try { window.open(url, '_blank', 'noopener,noreferrer'); } catch (e) { /* ignore */ }
+}
+
+/**
+ * 把回答里的 [1] [2] 换成可点链接，并在末尾附来源列表。
+ * 只动文本节点，跳过代码块和已有链接，避免破坏 Markdown 渲染结果。
+ */
+function applyCitations(container, sources) {
+  if (!container || !sources || sources.length === 0) return;
+
+  const max = sources.length;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const p = node.parentElement;
+      if (!p) return NodeFilter.FILTER_REJECT;
+      const tag = p.tagName;
+      if (tag === 'CODE' || tag === 'PRE' || tag === 'A') return NodeFilter.FILTER_REJECT;
+      return /\[\d{1,2}\]/.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }
+  });
+
+  const targets = [];
+  let node;
+  while ((node = walker.nextNode()) !== null) targets.push(node);
+
+  for (const n of targets) {
+    const text = n.nodeValue;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    const re = /\[(\d{1,2})\]/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const idx = Number(m[1]);
+      if (idx < 1 || idx > max) continue;
+      if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+      const a = document.createElement('a');
+      a.className = 'cite';
+      a.setAttribute('href', sources[idx - 1].url || '#');
+      a.textContent = '[' + idx + ']';
+      a.title = sources[idx - 1].title || a.getAttribute('href');
+      frag.appendChild(a);
+      last = m.index + m[0].length;
+    }
+    if (last === 0) continue;
+    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+    n.parentNode.replaceChild(frag, n);
+  }
+
+  const box = document.createElement('div');
+  box.className = 'sources';
+
+  const title = document.createElement('div');
+  title.className = 'sources-title';
+  title.textContent = '参考来源';
+  box.appendChild(title);
+
+  sources.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'source-item';
+
+    const num = document.createElement('span');
+    num.className = 'source-num';
+    num.textContent = '[' + (i + 1) + ']';
+    row.appendChild(num);
+
+    const a = document.createElement('a');
+    a.setAttribute('href', s.url || '#');
+    a.textContent = s.title || s.url || '(无标题)';
+    a.title = s.url || '';
+    row.appendChild(a);
+
+    box.appendChild(row);
+  });
+
+  container.appendChild(box);
+}
+
 function renderMessageFinal(msg, dom) {
   renderToolLines(dom.toolBox, msg.tools || []);
 
@@ -646,6 +748,7 @@ function renderMessageFinal(msg, dom) {
   } else {
     const html = renderMarkdown(msg.content || '');
     dom.body.innerHTML = html || '<p style="color:var(--muted)">（没有返回内容）</p>';
+    applyCitations(dom.body, msg.sources);
   }
 
   // 底部信息：token / 耗时 / 复制
@@ -732,6 +835,7 @@ async function sendMessage(rawText) {
     reasoning: '',
     tools: [],
     notices: [],
+    sources: [],
     dom,
     timer: null
   };
@@ -772,6 +876,7 @@ function finishStreaming({ error, code, usage, elapsedMs, stopped } = {}) {
     msg.reasoning = s.reasoning;
     msg.tools = s.tools;
     msg.notices = s.notices;
+    msg.sources = s.sources || [];
     msg.usage = usage || null;
     msg.elapsedMs = elapsedMs || 0;
     if (error) {
@@ -1130,9 +1235,26 @@ function initPresets() {
 /* ------------------------------------------------------------------ */
 
 async function main() {
+  // 回答里的链接（引用角标、来源列表、正文 URL）一律新标签页打开。
+  // 侧边栏里直接点 <a target=_blank> 常常没反应，必须自己接管。
+  document.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    const href = a.getAttribute('href') || '';
+    if (!/^https?:\/\//i.test(href)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openExternal(href);
+  }, true);
+
   initPresets();
   bindEvents();
   bindQuickActions(el.quickActions);
+
+  // 调试钩子：只在 ?debug=1 时暴露，供自动化测试验证引用渲染
+  if (String(location.search).indexOf('debug=1') !== -1) {
+    window.__pcDebug = { applyCitations, openExternal };
+  }
   await loadSettings();
   connectPort();
   refreshPageInfo();

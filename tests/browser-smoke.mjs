@@ -139,6 +139,45 @@ async function main() {
     check(manifestInfo.hasScripting, 'chrome.scripting API 可用');
     check(manifestInfo.hasStorageSession, 'chrome.storage.session 可用');
 
+    // ---- 2b. 引用角标渲染（在真实扩展页面里执行）----
+    await page.goto(sidePanelUrl + '?debug=1', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(500);
+
+    const citeOut = await page.evaluate(() => {
+      const hook = window.__pcDebug;
+      if (!hook) return { error: '调试钩子未暴露' };
+      const srcs = [
+        { title: '来源一', url: 'https://example.com/a' },
+        { title: '来源二', url: 'https://example.com/b' },
+        { title: '来源三', url: 'https://example.com/c' }
+      ];
+      const box = document.createElement('div');
+      box.className = 'body';
+      box.innerHTML = '<p>正文 [1] 和 [3]，越界的 [9]</p><pre><code>[1]</code></pre>';
+      document.body.appendChild(box);
+      hook.applyCitations(box, srcs);
+      return {
+        cite: box.querySelectorAll('a.cite').length,
+        hrefs: Array.from(box.querySelectorAll('a.cite')).map((a) => a.getAttribute('href')),
+        block: !!box.querySelector('.sources'),
+        items: box.querySelectorAll('.source-item').length,
+        code: box.querySelector('code').textContent
+      };
+    });
+
+    check(!citeOut.error, '引用渲染钩子可用', citeOut.error || '');
+    if (!citeOut.error) {
+      check(citeOut.cite === 2, '只替换有效角标（[1][3]），实际 ' + citeOut.cite);
+      check(citeOut.hrefs[0] === 'https://example.com/a', '角标指向第 1 条来源');
+      check(citeOut.hrefs[1] === 'https://example.com/c', '角标指向第 3 条来源');
+      check(citeOut.block && citeOut.items === 3, '来源区块 3 条，实际 ' + citeOut.items);
+      check(citeOut.code === '[1]', '代码块里的 [1] 未被误改');
+    }
+
+    // 回到正常页面继续后面的检查
+    await page.goto(sidePanelUrl, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(600);
+
     // ---- 3. UI 渲染 ----
     const ui = await page.evaluate(() => {
       const q = (s) => document.querySelector(s);
