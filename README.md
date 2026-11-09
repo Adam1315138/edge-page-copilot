@@ -204,6 +204,17 @@ edge-page-copilot/
 
 ---
 
+## 相关项目
+
+| 项目 | 平台 | 做什么 |
+|---|---|---|
+| **Page Copilot**（本仓库） | Edge 侧边栏扩展 | 读正在看的网页与 PDF，结合页面上下文回答 |
+| [**Office Copilot**](https://github.com/Adam1315138/office-page) | Word / Excel / PowerPoint | 读当前文档、框选改字、联网检索 |
+
+同一套思路的两端：**自带 UI + 你自己的模型 Key**，不依赖厂商内置 AI，不经过任何中转服务。
+
+---
+
 ## 版本
 
 v1.2.0 · 无账号、无遥测、无中转。
