@@ -90,6 +90,7 @@ export async function streamChat({
   let finishReason = '';
   let usage = null;
   let streamError = null;
+  let dsmlSeen = false;
 
   const parser = createSSEParser(({ data }) => {
     if (!data || data === '[DONE]') return;
@@ -115,7 +116,10 @@ export async function streamChat({
     }
     if (delta.content) {
       content += delta.content;
-      if (onDelta) onDelta(delta.content);
+      // 一旦正文里出现 DSML 调用标记，就停止往界面推流：
+      // 这段标记不该给用户看，交给 agent.js 解析成工具调用、最后统一渲染干净正文。
+      if (!dsmlSeen && content.includes('DSML')) dsmlSeen = true;
+      if (onDelta && !dsmlSeen) onDelta(delta.content);
     }
     if (delta.tool_calls) acc.add(delta.tool_calls);
     if (choice.finish_reason) finishReason = choice.finish_reason;
