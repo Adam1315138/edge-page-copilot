@@ -174,6 +174,22 @@ async function main() {
       check(citeOut.code === '[1]', '代码块里的 [1] 未被误改');
     }
 
+    // ---- 2c. 界面层也要能过滤 DSML 标记（兜底）----
+    const dsmlOut = await page.evaluate(() => {
+      const hook = window.__pcDebug;
+      if (!hook || typeof hook.stripDsml !== 'function') return { error: '未暴露 stripDsml' };
+      const dirty = '正文前一句。\n< | | | DSML | | | calls>\n< | | | DSML | | | invoke name="read_url">\n'
+        + '< | | | DSML | | | parameter name="url" string="true">https://example.com/x</ | | | DSML | | | parameter>\n'
+        + '</ | | | DSML | | | invoke>\n</ | | | DSML | | | calls>\n正文后一句。';
+      const clean = hook.stripDsml(dirty);
+      return { clean, stillDirty: /DSML/i.test(clean) };
+    });
+    check(!dsmlOut.error, '界面层拿到 stripDsml', dsmlOut.error || '');
+    if (!dsmlOut.error) {
+      check(dsmlOut.stillDirty === false, '渲染前清掉了 DSML 标记');
+      check(/正文前一句/.test(dsmlOut.clean) && /正文后一句/.test(dsmlOut.clean), '正文内容保留');
+    }
+
     // 回到正常页面继续后面的检查
     await page.goto(sidePanelUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(600);

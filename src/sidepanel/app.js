@@ -8,6 +8,7 @@
  */
 
 import { renderMarkdown, escapeHtml } from '../lib/markdown.js';
+import { stripDsml } from '../lib/dsml.js';
 import { DEFAULT_SETTINGS, mergeSettings, MODEL_PRESETS, modelSupportsTools } from '../lib/util.js';
 import { buildPdfContext } from '../lib/pdf-context.js';
 import { loadPdfContext, loadPdfFromFile } from './pdf-loader.js';
@@ -610,7 +611,8 @@ function renderStreamingNow() {
     if (pre.textContent !== s.reasoning) pre.textContent = s.reasoning;
   }
 
-  const html = renderMarkdown(s.content || '');
+  // 流式过程中也要过滤：改后台之前，标记可能已经流进来一小段
+  const html = renderMarkdown(stripDsml(s.content || ''));
   const withCursor = html + '<span class="cursor-blink"></span>';
   if (s.dom.body.dataset.html !== withCursor) {
     s.dom.body.innerHTML = withCursor;
@@ -746,7 +748,9 @@ function renderMessageFinal(msg, dom) {
     }
     dom.body.appendChild(err);
   } else {
-    const html = renderMarkdown(msg.content || '');
+    // 兜底：即使后台没拦住（例如模型把调用写成文本），渲染前也要把 DSML 标记清掉
+    const safeContent = stripDsml(msg.content || '');
+    const html = renderMarkdown(safeContent);
     dom.body.innerHTML = html || '<p style="color:var(--muted)">（没有返回内容）</p>';
     applyCitations(dom.body, msg.sources);
   }
@@ -1253,7 +1257,7 @@ async function main() {
 
   // 调试钩子：只在 ?debug=1 时暴露，供自动化测试验证引用渲染
   if (String(location.search).indexOf('debug=1') !== -1) {
-    window.__pcDebug = { applyCitations, openExternal };
+    window.__pcDebug = { applyCitations, openExternal, stripDsml };
   }
   await loadSettings();
   connectPort();
